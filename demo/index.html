@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>嘉庚智慧馆员 · AI Agent</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+    background: linear-gradient(160deg, #0e1a3a 0%, #12295c 45%, #1b3a7a 100%);
+    color: #e8edf7;
+    display: flex; flex-direction: column;
+  }
+  /* ===== 页头 ===== */
+  .header {
+    padding: 10px 18px;
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+    z-index: 30;
+  }
+  .logo {
+    width: 38px; height: 38px; border-radius: 12px;
+    background: linear-gradient(135deg, #4f8cff, #2bd9c8);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; color: #fff; flex-shrink: 0;
+  }
+  .title { font-size: 16px; font-weight: 600; }
+  .sub { font-size: 11px; color: rgba(232,237,247,0.6); margin-top: 2px; }
+  .badges { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .badge {
+    font-size: 10.5px; padding: 3px 9px; border-radius: 20px;
+    background: rgba(43,217,200,0.15); color: #7fe9dd; border: 1px solid rgba(43,217,200,0.35);
+    white-space: nowrap;
+  }
+  .badge.blue { background: rgba(79,140,255,0.15); color: #9dbaff; border-color: rgba(79,140,255,0.35); }
+  .mode-tag { font-size: 10px; color: #7fe9dd; opacity: .85; margin-left: 6px; }
+  #drawerBtn {
+    display: none; border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.08);
+    color: #e8edf7; border-radius: 10px; padding: 6px 12px; font-size: 14px; cursor: pointer;
+  }
+  /* ===== 三栏布局 ===== */
+  .layout { flex: 1; display: flex; max-width: 1360px; width: 100%; margin: 0 auto; min-height: 0; }
+  .panel {
+    overflow-y: auto; padding: 14px 12px; flex-shrink: 0;
+    scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent;
+  }
+  /* 左栏 */
+  .left { width: 248px; border-right: 1px solid rgba(255,255,255,0.09); }
+  /* 右栏 */
+  .right { width: 292px; border-left: 1px solid rgba(255,255,255,0.09); }
+  .section { margin-bottom: 18px; }
+  .sec-title {
+    font-size: 11.5px; color: rgba(232,237,247,0.55); letter-spacing: 1px;
+    margin-bottom: 9px; display: flex; align-items: center; gap: 6px;
+  }
+  .sec-title::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.1); }
+  /* Agent 能力列表 */
+  .cap {
+    display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: 10px;
+    font-size: 12px; color: rgba(232,237,247,0.82); margin-bottom: 4px;
+    background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.08);
+  }
+  .cap .ci { width: 22px; text-align: center; font-size: 14px; flex-shrink: 0; }
+  .cap .ct { font-size: 10.5px; color: rgba(232,237,247,0.45); display: block; }
+  /* 功能卡片（左栏列表式） */
+  .card {
+    display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 11px;
+    cursor: pointer; background: rgba(255,255,255,0.055); border: 1px solid rgba(255,255,255,0.11);
+    transition: all .15s; user-select: none; margin-bottom: 6px;
+  }
+  .card:hover { background: rgba(79,140,255,0.22); border-color: #4f8cff; transform: translateX(2px); }
+  .card .ic { font-size: 16px; flex-shrink: 0; }
+  .card .nm { font-size: 12.5px; font-weight: 600; }
+  .card .ds { font-size: 10.5px; color: rgba(232,237,247,0.5); display: block; margin-top: 1px; }
+  /* 右栏 KPI */
+  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .kpi {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 9px 10px;
+  }
+  .kpi .v { font-size: 17px; font-weight: 700; color: #ffd479; line-height: 1.2; }
+  .kpi .k { font-size: 10.5px; color: rgba(232,237,247,0.55); margin-top: 2px; }
+  .list-item {
+    display: flex; justify-content: space-between; gap: 8px; align-items: baseline;
+    font-size: 11.5px; padding: 5px 2px; border-bottom: 1px dashed rgba(255,255,255,0.08);
+  }
+  .list-item .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(232,237,247,0.85); }
+  .list-item .c { color: #7fe9dd; flex-shrink: 0; font-size: 11px; }
+  .hot-chip {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; padding: 3px 8px;
+    border-radius: 14px; background: rgba(43,217,200,0.12); border: 1px solid rgba(43,217,200,0.28);
+    color: #9fe9df; margin: 0 4px 6px 0;
+  }
+  /* ===== 中间对话区 ===== */
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #chat { flex: 1; overflow-y: auto; padding: 14px 18px 10px; min-height: 0; }
+  .msg { display: flex; margin-bottom: 14px; }
+  .msg.user { justify-content: flex-end; }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 15px;
+  }
+  .msg.bot .avatar { background: linear-gradient(135deg, #4f8cff, #2bd9c8); margin-right: 10px; }
+  .msg.user .avatar { background: rgba(255,255,255,0.18); margin-left: 10px; order: 2; }
+  .bubble {
+    max-width: 80%; padding: 11px 14px; border-radius: 14px; font-size: 14px; line-height: 1.65;
+    word-break: break-word; white-space: pre-wrap;
+  }
+  .msg.bot .bubble {
+    background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.1);
+    border-top-left-radius: 4px;
+  }
+  .msg.user .bubble {
+    background: linear-gradient(135deg, #2f6bff, #3f8cff); border-top-right-radius: 4px;
+  }
+  .bubble b, .bubble strong { color: #ffd479; }
+  .bubble table { border-collapse: collapse; margin: 6px 0; width: 100%; font-size: 12.5px; }
+  .bubble th, .bubble td { border: 1px solid rgba(255,255,255,0.18); padding: 5px 8px; text-align: left; }
+  .bubble th { background: rgba(255,255,255,0.1); color: #9dbaff; font-weight: 600; }
+  .tool-line {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: #7fe9dd;
+    background: rgba(43,217,200,0.1); border: 1px solid rgba(43,217,200,0.3);
+    border-radius: 16px; padding: 2px 10px; margin: 2px 4px 2px 0;
+  }
+  .dot { display: inline-block; width: 5px; height: 5px; margin-left: 3px; border-radius: 50%;
+         background: #7fe9dd; animation: blink 1s infinite; }
+  .dot:nth-child(2) { animation-delay: .2s; } .dot:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%,100% { opacity: .2; } 50% { opacity: 1; } }
+  .inputbar { padding: 10px 16px 16px; flex-shrink: 0; }
+  .inputbox {
+    display: flex; gap: 10px; max-width: 900px; margin: 0 auto;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 24px; padding: 8px 8px 8px 16px; align-items: center;
+  }
+  .inputbox:focus-within { border-color: #4f8cff; background: rgba(255,255,255,0.11); }
+  #input {
+    flex: 1; background: transparent; border: none; outline: none; color: #e8edf7;
+    font-size: 14.5px; padding: 6px 0;
+  }
+  #input::placeholder { color: rgba(232,237,247,0.4); }
+  #mic {
+    border: none; background: transparent; cursor: pointer; font-size: 19px; padding: 4px 2px;
+    line-height: 1; border-radius: 50%; color: rgba(232,237,247,0.7); flex-shrink: 0;
+    transition: all .15s; width: 34px; height: 34px;
+  }
+  #mic:hover { background: rgba(255,255,255,0.1); }
+  #mic.listening { background: rgba(255,80,80,0.25); color: #ff9a9a; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,80,80,0.4); } 50% { box-shadow: 0 0 0 6px rgba(255,80,80,0); } }
+  #send {
+    border: none; border-radius: 20px; padding: 9px 20px; cursor: pointer; font-size: 14px;
+    font-weight: 600; color: #fff;
+    background: linear-gradient(135deg, #2f6bff, #2bd9c8);
+    transition: all .15s; flex-shrink: 0;
+  }
+  #send:hover { filter: brightness(1.12); }
+  #send:disabled { opacity: .45; cursor: not-allowed; }
+  .notice {
+    max-width: 900px; margin: 6px auto 0; padding: 0 16px; font-size: 11px;
+    color: rgba(232,237,247,0.45); text-align: center;
+  }
+  /* 移动端：左右栏收进抽屉 */
+  @media (max-width: 1080px) {
+    .left, .right { display: none; position: fixed; top: 60px; bottom: 0; z-index: 25;
+                    background: rgba(14,26,58,0.98); backdrop-filter: blur(10px); }
+    .left { left: 0; border-right: 1px solid rgba(255,255,255,0.12); }
+    .right { right: 0; border-left: 1px solid rgba(255,255,255,0.12); }
+    .left.open, .right.open { display: block; }
+    #drawerBtn { display: block; }
+    .mask { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 20; }
+    .mask.show { display: block; }
+  }
+  @media (max-width: 560px) {
+    .bubble { max-width: 86%; }
+    .sub { display: none; }
+    .badge.blue { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <button id="drawerBtn">☰</button>
+  <div class="logo">嘉</div>
+  <div>
+    <div class="title">嘉庚智慧馆员 <span class="mode-tag">AI Agent</span></div>
+    <div class="sub">基于真实图书馆数据 · DeepSeek Function Calling · 多轮对话</div>
+  </div>
+  <div class="badges">
+    <span class="badge">📚 真实数据引擎</span>
+    <span class="badge blue">🤖 DeepSeek 已接入</span>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- ===== 左栏：能力 + 功能入口 ===== -->
+  <aside class="panel left" id="leftPanel">
+    <div class="section">
+      <div class="sec-title">✨ 我能帮你做什么？</div>
+      <div class="card" data-template="帮我查一下《解忧杂货店》有没有，在哪个书库"><span class="ic">📖</span><div><span class="nm">查书找书</span><span class="ds">改书名 · 馆藏/索书号/楼层</span></div></div>
+      <div class="card" data-template="推荐几本适合我的书"><span class="ic">🎯</span><div><span class="nm">智能推荐</span><span class="ds">可补学号做个性化推荐</span></div></div>
+      <div class="card" data-template="这周有什么热点，结合热点推荐几本书"><span class="ic">🔥</span><div><span class="nm">热点荐书</span><span class="ds">本周热搜 × 你的兴趣</span></div></div>
+      <div class="card" data-template="Nature这类顶刊最近有什么热点研究方向"><span class="ic">📰</span><div><span class="nm">顶刊热点</span><span class="ds">Nature/Science 近期方向荐书</span></div></div>
+      <div class="card" data-template="帮我查学号SSCCLL21080的借阅记录"><span class="ic">👤</span><div><span class="nm">我的借阅</span><span class="ds">改成你的学号再发送</span></div></div>
+      <div class="card" data-template="帮我生成学号SSCCLL21080的阅读画像报告"><span class="ic">📈</span><div><span class="nm">阅读画像报告</span><span class="ds">输学号 · 生成年度阅读报告</span></div></div>
+      <div class="card" data-template="现在图书馆人多不多，能自习吗"><span class="ic">⏰</span><div><span class="nm">现在能自习吗</span><span class="ds">实时开馆状态 · 拥挤预测</span></div></div>
+      <div class="card" data-template="《自动控制原理》在哪个书库"><span class="ic">📍</span><div><span class="nm">书在哪</span><span class="ds">改书名 · 架位导航</span></div></div>
+      <div class="card" data-template="最受欢迎的图书有哪些"><span class="ic">🏆</span><div><span class="nm">借阅排行</span><span class="ds">全校借阅热度 TOP 榜单</span></div></div>
+      <div class="card" data-template="我们学校哪些老师研究人工智能"><span class="ic">👨‍🏫</span><div><span class="nm">学者成果</span><span class="ds">检索嘉庚学者论文库</span></div></div>
+      <div class="card" data-mic="1"><span class="ic">🎤</span><div><span class="nm">语音问馆员</span><span class="ds">点一下说话 · 自动识别</span></div></div>
+    </div>
+    <div class="section">
+      <div class="sec-title">⚙️ Agent 能力栈</div>
+      <div class="cap"><span class="ci">🧩</span><div><b>Function Calling 工具调用</b><span class="ct">LLM 自主决策调用 20+ 数据工具</span></div></div>
+      <div class="cap"><span class="ci">🧠</span><div><b>多轮会话记忆</b><span class="ct">20 轮上下文 + 指代理解</span></div></div>
+      <div class="cap"><span class="ci">⚡</span><div><b>SSE 流式输出</b><span class="ct">打字机式实时响应</span></div></div>
+      <div class="cap"><span class="ci">🔍</span><div><b>意图预过滤</b><span class="ct">规则层拦截，节省 Token</span></div></div>
+      <div class="cap"><span class="ci">🤝</span><div><b>协同过滤推荐</b><span class="ct">相似读者 × 借阅历史（过去）</span></div></div>
+      <div class="cap"><span class="ci">💎</span><div><b>零借阅好书挖掘</b><span class="ct">质量分 × 出版社声望（将来）</span></div></div>
+      <div class="cap"><span class="ci">🔥</span><div><b>热点融合荐书</b><span class="ct">本周热搜 × 个人兴趣加权</span></div></div>
+      <div class="cap"><span class="ci">📰</span><div><b>顶刊文献热点</b><span class="ct">Nature/Science 方向映射馆藏</span></div></div>
+    </div>
+  </aside>
+
+  <!-- ===== 中间：对话 ===== -->
+  <main class="main">
+    <div id="chat"></div>
+    <div class="inputbar">
+      <div class="inputbox">
+        <button id="mic" title="语音输入（需浏览器允许麦克风）">🎤</button>
+        <input id="input" type="text" placeholder="问我任何图书馆的问题…" autocomplete="off">
+        <button id="send">发送</button>
+      </div>
+      <div class="notice">点左侧功能卡片填入问题，改成你的学号/书名后发送 · 也可直接打字或语音</div>
+    </div>
+  </main>
+
+  <!-- ===== 右栏：实时数据面板 ===== -->
+  <aside class="panel right" id="rightPanel">
+    <div class="section">
+      <div class="sec-title">📊 实时数据引擎</div>
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi"><div class="v">—</div><div class="k">馆藏图书</div></div>
+        <div class="kpi"><div class="v">—</div><div class="k">借阅流水</div></div>
+        <div class="kpi"><div class="v">—</div><div class="k">在读读者</div></div>
+        <div class="kpi"><div class="v">—</div><div class="k">门禁人次</div></div>
+        <div class="kpi"><div class="v">—</div><div class="k">座位预约</div></div>
+        <div class="kpi"><div class="v">—</div><div class="k">学者论文</div></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="sec-title">🏆 借阅热度 TOP5</div>
+      <div id="topBooks"><div style="font-size:11px;color:rgba(232,237,247,0.4);">加载中…</div></div>
+    </div>
+    <div class="section">
+      <div class="sec-title">🔥 本周热点</div>
+      <div id="hotChips">加载中…</div>
+    </div>
+    <div class="section">
+      <div class="sec-title">💎 零借阅宝藏</div>
+      <div id="zeroBooks" style="font-size:11.5px;color:rgba(232,237,247,0.8);">加载中…</div>
+    </div>
+  </aside>
+</div>
+
+<div class="mask" id="mask"></div>
+
+<script>
+(function () {
+  'use strict';
+  var chat = document.getElementById('chat');
+  var input = document.getElementById('input');
+  var sendBtn = document.getElementById('send');
+  var micBtn = document.getElementById('mic');
+  var cards = document.querySelectorAll('.card');
+  var leftPanel = document.getElementById('leftPanel');
+  var rightPanel = document.getElementById('rightPanel');
+  var drawerBtn = document.getElementById('drawerBtn');
+  var mask = document.getElementById('mask');
+
+  // 移动端抽屉
+  function closeDrawers() {
+    if (leftPanel) leftPanel.classList.remove('open');
+    if (rightPanel) rightPanel.classList.remove('open');
+    if (mask) mask.classList.remove('show');
+  }
+  if (drawerBtn) {
+    var drawerIdx = 0;
+    drawerBtn.onclick = function () {
+      drawerIdx = (drawerIdx + 1) % 3;
+      closeDrawers();
+      if (drawerIdx === 1 && leftPanel) leftPanel.classList.add('open');
+      if (drawerIdx === 2 && rightPanel) rightPanel.classList.add('open');
+      if (mask && drawerIdx !== 0) mask.classList.add('show');
+    };
+  }
+  if (mask) mask.onclick = closeDrawers;
+
+  var SID_KEY = 'jg_agent_session_v5';
+  var sid = localStorage.getItem(SID_KEY) || '';
+  var busy = false;
+
+  // 功能卡片：点击填入输入框（可编辑后发送），不自动发送
+  function fillTemplate(tpl) {
+    input.value = tpl;
+    input.focus();
+    var notice = document.querySelector('.notice');
+    if (notice) {
+      var orig = notice.textContent;
+      notice.textContent = '✏️ 已填入模板：把示例改成你的学号/书名，按回车或点发送';
+      notice.style.color = '#7fe9dd';
+      setTimeout(function () { notice.textContent = orig; notice.style.color = ''; }, 3000);
+    }
+    var m1 = tpl.indexOf('《'), m2 = tpl.indexOf('》');
+    if (m1 >= 0 && m2 > m1) { input.setSelectionRange(m1 + 1, m2); return; }
+    var m3 = tpl.match(/[A-Z]{2,6}\d{4,6}/);
+    if (m3 && m3.index !== undefined) { input.setSelectionRange(m3.index, m3.index + m3[0].length); return; }
+    input.setSelectionRange(tpl.length, tpl.length);
+  }
+  cards.forEach(function (card) {
+    card.onclick = function () {
+      if (card.getAttribute('data-mic')) {
+        if (micBtn && micBtn.onclick) { micBtn.onclick(); }
+        return;
+      }
+      fillTemplate(card.getAttribute('data-template') || '');
+    };
+  });
+
+  // 轻量 markdown：加粗 / 表格 / 行内代码
+  function render(text) {
+    var s = String(text || '');
+    s = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    var tableHtml = '';
+    s = s.replace(/^\|(.+)\|$/gm, function (line) {
+      var cells = line.slice(1, -1).split('|');
+      if (/^[-: ]+$/.test(cells[0].trim())) { return ''; }
+      var isHead = tableHtml.indexOf('hasHead') === -1;
+      var out = '<tr>';
+      cells.forEach(function (c) { out += '<' + (isHead ? 'th' : 'td') + '>' + c.trim() + '</' + (isHead ? 'th' : 'td') + '>'; });
+      out += '</tr>';
+      return out;
+    });
+    s = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    s = s.replace(/`(.+?)`/g, '<code>$1</code>');
+    return s;
+  }
+
+  function addMsg(role, html) {
+    var wrap = document.createElement('div');
+    wrap.className = 'msg ' + role;
+    var av = document.createElement('div');
+    av.className = 'avatar';
+    av.textContent = role === 'bot' ? '🤖' : '我';
+    var bub = document.createElement('div');
+    bub.className = 'bubble';
+    bub.innerHTML = html;
+    wrap.appendChild(av);
+    wrap.appendChild(bub);
+    chat.appendChild(wrap);
+    chat.scrollTop = chat.scrollHeight;
+    return bub;
+  }
+
+  function restore() {
+    var saved = localStorage.getItem('jg_agent_chat_v5');
+    if (!saved) return;
+    try {
+      var list = JSON.parse(saved);
+      list.forEach(function (m) { addMsg(m.role, m.html); });
+    } catch (e) {}
+  }
+
+  function saveChat() {
+    var list = [];
+    chat.querySelectorAll('.msg').forEach(function (el) {
+      var bub = el.querySelector('.bubble');
+      if (!bub) return;
+      var isBot = el.classList.contains('bot');
+      list.push({ role: isBot ? 'bot' : 'user', html: bub.innerHTML });
+    });
+    if (list.length > 60) list = list.slice(-60);
+    try { localStorage.setItem('jg_agent_chat_v5', JSON.stringify(list)); } catch (e) {}
+  }
+
+  function addToolLine(text) {
+    var bub = chat.querySelector('.msg.bot:last-child .bubble');
+    if (!bub) return;
+    var span = document.createElement('span');
+    span.className = 'tool-line';
+    span.textContent = '⏳ ' + text;
+    bub.appendChild(span);
+    bub.appendChild(document.createElement('br'));
+    chat.scrollTop = chat.scrollHeight;
+    return span;
+  }
+
+  function showTyping() {
+    var bub = addMsg('bot', '<span>正在思考</span><span class="dot"></span><span class="dot"></span><span class="dot"></span>');
+    return bub;
+  }
+
+  function typeWriter(bub, fullText, done) {
+    var i = 0;
+    function tick() {
+      if (i >= fullText.length) { done(); return; }
+      i = Math.min(fullText.length, i + 8);
+      bub.innerHTML = render(fullText.slice(0, i));
+      chat.scrollTop = chat.scrollHeight;
+      setTimeout(tick, 12);
+    }
+    tick();
+  }
+
+  function ask(q) {
+    if (busy) return;
+    q = (q || '').trim();
+    if (!q) return;
+    busy = true;
+    sendBtn.disabled = true;
+    input.value = '';
+
+    // 阅读画像报告意图检测（输入含 报告/画像/年度 且带学号）
+    var ridMatch = q.match(/[A-Z]{2,6}\d{4,6}/);
+    var wantReport = /报告|画像|年度/.test(q);
+    var reportRid = (wantReport && ridMatch) ? ridMatch[0] : '';
+
+    addMsg('user', render(q));
+    var typing = showTyping();
+    var finalText = '';
+
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: q, session_id: sid })
+    }).then(function (resp) {
+      if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status);
+      var reader = resp.body.getReader();
+      var decoder = new TextDecoder();
+      var buf = '';
+      function pump() {
+        return reader.read().then(function (r) {
+          if (r.done) return;
+          buf += decoder.decode(r.value, { stream: true });
+          var lines = buf.split('\n\n');
+          buf = lines.pop();
+          lines.forEach(function (chunk) {
+            var line = chunk.split('\n').find(function (l) { return l.indexOf('data:') === 0; });
+            if (!line) return;
+            var payload = line.slice(5).trim();
+            if (!payload) return;
+            var ev;
+            try { ev = JSON.parse(payload); } catch (e) { return; }
+            if (ev.type === 'hello' && ev.session_id) {
+              sid = ev.session_id;
+              localStorage.setItem(SID_KEY, sid);
+            }
+            if (ev.type === 'status') {
+              if (typing) typing.innerHTML = '';
+              addToolLine(ev.text || '');
+            }
+            if (ev.type === 'delta') {
+              finalText += (ev.text || '');
+            }
+            if (ev.type === 'done') {
+              if (typing && typing.parentNode) typing.parentNode.remove();
+              typeWriter(addMsg('bot', ''), finalText || '（没有返回内容）', function () {
+                saveChat();
+                if (reportRid) { loadReport(reportRid); }
+              });
+            }
+          });
+          return pump();
+        });
+      }
+      return pump();
+    }).catch(function (err) {
+      if (typing) typing.innerHTML = '';
+      var hint = '连接失败。请先运行 python app.py，再通过 http://127.0.0.1:8000 访问（错误：' + err.message + '）';
+      addMsg('bot', render(hint));
+      saveChat();
+    }).finally(function () {
+      busy = false;
+      sendBtn.disabled = false;
+    });
+  }
+
+  sendBtn.onclick = function () { ask(input.value); };
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { ask(input.value); }
+  });
+
+  // 语音输入（Web Speech API，Chrome/Edge 可用，需 localhost）
+  var recognition = null;
+  var listening = false;
+  var finalTranscript = '';
+  if ('webkitSpeechRecognition' in window) {
+    recognition = new webkitSpeechRecognition();
+    recognition.lang = 'zh-CN';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.onresult = function (e) {
+      var interim = '';
+      for (var i = 0; i < e.results.length; i++) {
+        var r = e.results[i];
+        if (r.isFinal) { finalTranscript += r[0].transcript; }
+        else { interim += r[0].transcript; }
+      }
+      input.value = (finalTranscript + interim).trim();
+    };
+    recognition.onend = function () {
+      listening = false;
+      micBtn.classList.remove('listening');
+      micBtn.textContent = '🎤';
+      var t = finalTranscript.trim();
+      finalTranscript = '';
+      if (t) { ask(t); }
+    };
+    recognition.onerror = function (e) {
+      listening = false;
+      micBtn.classList.remove('listening');
+      micBtn.textContent = '🎤';
+      finalTranscript = '';
+      if (e.error === 'not-allowed') { addMsg('bot', render('⚠️ 麦克风权限被拒绝，请在浏览器地址栏允许麦克风后重试，或直接打字。')); saveChat(); }
+    };
+  }
+
+  micBtn.onclick = function () {
+    if (!recognition) {
+      addMsg('bot', render('⚠️ 当前浏览器不支持语音输入，建议使用 Chrome 或 Edge 浏览器，并通过 http://127.0.0.1:8000 访问。'));
+      saveChat();
+      return;
+    }
+    if (listening) { recognition.stop(); return; }
+    listening = true;
+    micBtn.classList.add('listening');
+    micBtn.textContent = '🔴';
+    try { recognition.start(); } catch (e) {}
+  };
+
+  // 右栏实时数据面板
+  function fmtNum(n) {
+    n = Number(n) || 0;
+    return n >= 10000 ? (n / 10000).toFixed(1) + '万' : n.toLocaleString();
+  }
+  function loadStats() {
+    fetch('/api/stats').then(function (r) { return r.json(); }).then(function (res) {
+      if (!res.ok || !res.data) return;
+      var d = res.data;
+      var kpi = document.getElementById('kpiGrid');
+      if (kpi) {
+        var items = [
+          ['馆藏图书', d.collection && d.collection.total],
+          ['借阅流水', d.borrow && d.borrow.total],
+          ['在读读者', d.borrow && d.borrow.readers],
+          ['门禁人次', d.gate && d.gate.total],
+          ['座位预约', d.seat && d.seat.total],
+          ['学者论文', d.scholar]
+        ];
+        var html = '';
+        items.forEach(function (it) {
+          html += '<div class="kpi"><div class="v">' + fmtNum(it[1]) + '</div><div class="k">' + it[0] + '</div></div>';
+        });
+        kpi.innerHTML = html;
+      }
+      var tb = document.getElementById('topBooks');
+      if (tb && d.top_books && d.top_books.length) {
+        tb.innerHTML = d.top_books.map(function (b) {
+          return '<div class="list-item"><span class="t">' + b.title + '</span><span class="c">' + b.count + '次</span></div>';
+        }).join('');
+      }
+      var hc = document.getElementById('hotChips');
+      if (hc && d.hot_topics && d.hot_topics.length) {
+        hc.innerHTML = d.hot_topics.map(function (h) {
+          return '<span class="hot-chip">' + (h.icon || '🔥') + ' ' + h.name + '</span>';
+        }).join('');
+      }
+      var zb = document.getElementById('zeroBooks');
+      if (zb && d.zero_books && d.zero_books.length) {
+        zb.innerHTML = d.zero_books.map(function (z) {
+          return '<div class="list-item"><span class="t">' + z.title + '</span><span class="c">' + z.callno + '</span></div>';
+        }).join('');
+      }
+    }).catch(function () {});
+  }
+
+  // 阅读画像报告卡片（纯 CSS，离线可用）
+  function escHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function reportCardHtml(d) {
+    var cats = (d.categories || []).slice(0, 5);
+    var barHtml = '';
+    var colors = ['#4f8cff', '#2bd9c8', '#ffd479', '#eaa7b2', '#9bbbf4'];
+    cats.forEach(function (c, i) {
+      barHtml += '<div style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:12px;">' +
+        '<span style="width:58px;flex-shrink:0;color:#c7d4f5;">' + escHtml(c.name) + '</span>' +
+        '<span style="flex:1;background:rgba(255,255,255,0.12);border-radius:6px;height:12px;overflow:hidden;display:block;">' +
+        '<span style="display:block;height:12px;width:' + Math.max(4, c.pct) + '%;border-radius:6px;background:linear-gradient(90deg,' + colors[i % colors.length] + ',' + colors[i % colors.length] + 'cc);"></span></span>' +
+        '<span style="width:34px;text-align:right;color:#7fe9dd;flex-shrink:0;">' + c.pct + '%</span></div>';
+    });
+    var tags = (d.tags || []).map(function (t) {
+      return '<span style="display:inline-block;font-size:11px;padding:2px 9px;border-radius:14px;background:rgba(43,217,200,0.15);border:1px solid rgba(43,217,200,0.35);color:#9fe9df;margin:2px 4px 2px 0;">' + escHtml(t) + '</span>';
+    }).join('');
+    var tops = (d.top_books || []).slice(0, 3).map(function (b) {
+      return '<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed rgba(255,255,255,0.12);"><span style="color:#e8edf7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(b.title) + '</span><span style="color:#ffd479;flex-shrink:0;margin-left:8px;">' + b.count + '次</span></div>';
+    }).join('');
+    var recs = function (list, label) {
+      var items = (list || []).slice(0, 3).map(function (b) {
+        return '<span style="display:inline-block;font-size:11px;padding:3px 8px;border-radius:12px;background:rgba(79,140,255,0.15);border:1px solid rgba(79,140,255,0.3);color:#9dbaff;margin:2px 4px 2px 0;">' + escHtml(b.title) + '</span>';
+      }).join('');
+      return items ? '<div style="margin-top:8px;font-size:11px;color:rgba(232,237,247,0.55);">' + label + '</div><div>' + items + '</div>' : '';
+    };
+    return '<div style="background:linear-gradient(135deg,#16295e,#1b3a7a);border:1px solid rgba(255,255,255,0.18);border-radius:16px;padding:16px 16px 14px;margin:4px 0;box-sizing:border-box;">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+      '<span style="font-size:22px;">📈</span>' +
+      '<div><div style="font-size:15px;font-weight:700;color:#fff;">' + escHtml(d.patron) + ' 的阅读画像</div>' +
+      '<div style="font-size:10.5px;color:rgba(232,237,247,0.5);">厦门大学嘉庚学院 · 真实借阅流水生成</div></div></div>' +
+      '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
+      '<div style="flex:1;background:rgba(255,255,255,0.08);border-radius:10px;padding:8px;text-align:center;"><div style="font-size:20px;font-weight:700;color:#ffd479;">' + d.total_borrows + '</div><div style="font-size:10.5px;color:rgba(232,237,247,0.55);">累计借阅</div></div>' +
+      '<div style="flex:1;background:rgba(255,255,255,0.08);border-radius:10px;padding:8px;text-align:center;"><div style="font-size:20px;font-weight:700;color:#ffd479;">' + d.distinct_books + '</div><div style="font-size:10.5px;color:rgba(232,237,247,0.55);">读过图书</div></div>' +
+      '<div style="flex:1.4;background:rgba(255,255,255,0.08);border-radius:10px;padding:8px;text-align:center;"><div style="font-size:12px;color:#e8edf7;line-height:1.5;">' + tags + '</div><div style="font-size:10.5px;color:rgba(232,237,247,0.55);">阅读标签</div></div>' +
+      '</div>' +
+      '<div style="font-size:11px;color:rgba(232,237,247,0.6);margin-bottom:4px;">📊 阅读地图（中图法类目占比）</div>' + barHtml +
+      '<div style="font-size:11px;color:rgba(232,237,247,0.6);margin:10px 0 4px;">📚 常借 TOP</div>' + tops +
+      '<div style="background:rgba(43,217,200,0.08);border:1px solid rgba(43,217,200,0.25);border-radius:10px;padding:8px 10px;margin-top:10px;">' +
+      '<div style="font-size:11px;color:rgba(232,237,247,0.6);margin-bottom:2px;">🎯 为你推荐 · 王晓东算法（过去+将来）</div>' +
+      recs(d.recommend && d.recommend.personal, '🤝 相似读者也在读（协同过滤）') +
+      recs(d.recommend && d.recommend.zero, '💎 零借阅宝藏（出版社声望×类目热度）') +
+      '</div>' +
+      '<div style="font-size:10px;color:rgba(232,237,247,0.4);text-align:right;margin-top:8px;">数据来源：嘉庚图书馆真实借阅流水</div>' +
+      '</div>';
+  }
+  function loadReport(rid) {
+    fetch('/api/report?reader_id=' + encodeURIComponent(rid)).then(function (r) { return r.json(); }).then(function (res) {
+      if (!res.ok || !res.data || !res.data.found) return;
+      addMsg('bot', reportCardHtml(res.data));
+      saveChat();
+      chat.scrollTop = chat.scrollHeight;
+    }).catch(function () {});
+  }
+
+  restore();
+  loadStats();
+})();
+</script>
+</body>
+</html>
